@@ -2,9 +2,6 @@ name: iOS unsigned IPA
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - .github/workflows/ios-ipa.yml
 
 permissions:
   contents: read
@@ -14,11 +11,10 @@ jobs:
     runs-on: xcode-27
     timeout-minutes: 45
     env:
-      EXPO_PUBLIC_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPO_PUBLIC_COMMIT: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ env.EXPO_PUBLIC_COMMIT }}
           persist-credentials: false
       - uses: actions/setup-node@v6
         with:

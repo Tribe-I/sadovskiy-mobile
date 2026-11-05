@@ -7,6 +7,7 @@ This is an Expo/React Native mobile application. Prioritize mobile-first pattern
 - Allowed UI: React Native View, Text, Image, ScrollView, Pressable; the owner additionally approved TextInput and expo-secure-store. Ask before adding other runtime components/libraries.
 - Work in a codex/ branch and submit a PR. Do not merge without the owner's instruction. Never bypass required checks.
 - Do not run EAS builds, create Expo/Apple credentials, or add .github workflows during this initial stage.
+- The owner has now explicitly requested a standalone Android APK and EAS project linking. Android EAS builds/signing are authorized for this stage; iOS and CI automation remain deferred. Keep the first build interactive, never purchase a paid plan without authorization.
 - Public source must contain synthetic examples only. Real team templates, feature content, databases, tokens and passwords stay outside the repository.
 - Sessions go in SecureStore; shared data belongs to the private API. Never silently switch a failed API session into demo mode.
 - Keep separate progress for the general checklist, each competence, DoR and DoD. Exclude N/A from the denominator; require an explanation. No applicable items means no percentage, not 100%.

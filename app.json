@@ -1,29 +1,34 @@
 {
   "expo": {
     "name": "Featureflow",
-    "slug": "sadovskiy-mobile",
+    "slug": "checklist",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/featureflow-icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "ru.tribei.sadovskiymobile",
+      "versionCode": 1,
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#5553D8",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/featureflow-foreground.png",
+        "monochromeImage": "./assets/featureflow-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-secure-store",
-      "expo-status-bar"
-    ]
+    "plugins": ["expo-secure-store", "expo-status-bar"],
+    "extra": {
+      "eas": {
+        "projectId": "4fd5ab4d-181d-4f98-8146-8a25f6ee39b2"
+      }
+    },
+    "owner": "mistersds"
   }
 }

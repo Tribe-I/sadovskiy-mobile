@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   AppState,
+  BackHandler,
   Linking,
   Platform,
   Pressable,
@@ -22,6 +23,7 @@ import {
   statuses,
 } from "./src/model";
 import type { Feature, Item, Status, Workspace } from "./src/model";
+import { buildCommit } from "./src/build-version";
 
 const C = {
   bg: "#F4F5F9",
@@ -174,6 +176,25 @@ export default function App() {
   const writing = useRef(false);
   const reading = useRef(false);
   const feature = workspace?.features.find((f) => f.id === selected);
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (editing) {
+          setEditing(null);
+          setError("");
+          return true;
+        }
+        if (screen !== "home") {
+          setScreen("home");
+          return true;
+        }
+        return false;
+      },
+    );
+    return () => subscription.remove();
+  }, [screen, editing]);
   useEffect(() => {
     mounted.current = true;
     const g = generation.current;
@@ -771,7 +792,7 @@ export default function App() {
                   </Text>
                   <Text style={s.itemTitle}>
                     Версия:{" "}
-                    {process.env.EXPO_PUBLIC_COMMIT?.slice(0, 7) || "dev"}
+                    {process.env.EXPO_PUBLIC_COMMIT?.slice(0, 7) || buildCommit}
                   </Text>
                   <Text style={s.small}>
                     {demo

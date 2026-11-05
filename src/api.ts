@@ -1,6 +1,8 @@
 import * as SecureStore from "expo-secure-store";
 import type { Status, Workspace } from "./model";
-const base = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
+const base = (
+  process.env.EXPO_PUBLIC_API_URL || "https://tribe-i.ru/sadovskiy-mobile"
+).replace(/\/$/, "");
 const key = "featureflow-session-v1";
 export const configured = Boolean(base);
 export class ApiError extends Error {

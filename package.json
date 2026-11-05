@@ -23,7 +23,8 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/model.test.mjs",
-    "test:api": "python -m unittest discover -s backend -v"
+    "test:api": "python -m unittest discover -s backend -v",
+    "eas-build-post-install": "node scripts/write-build-version.cjs"
   },
   "private": true
 }

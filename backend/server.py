@@ -7,7 +7,9 @@ import hmac
 import json
 import os
 import secrets
+import socket
 import sqlite3
+import threading
 import time
 import uuid
 from contextlib import contextmanager
@@ -176,8 +178,57 @@ class Store:
         return {'ok': True}
 
 
+class TeamHTTPServer(ThreadingHTTPServer):
+    """Bound request threads so load cannot create unbounded workers."""
+    daemon_threads = True
+    request_queue_size = 16
+
+    def __init__(self, address, handler, max_workers=8):
+        if max_workers < 1:
+            raise ValueError('max_workers must be positive')
+        self.slots = threading.BoundedSemaphore(max_workers)
+        super().__init__(address, handler)
+
+    def process_request(self, request, client_address):
+        if not self.slots.acquire(blocking=False):
+            try:
+                request.settimeout(0.1)
+                request.sendall(b'HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nCache-Control: no-store\r\nRetry-After: 2\r\nConnection: close\r\n\r\n')
+                request.shutdown(socket.SHUT_WR)
+                # Drain a bounded amount after FIN so unread request bytes do not
+                # turn the 503 into a connection reset, notably on Windows.
+                deadline, remaining = time.monotonic() + 0.1, 65536
+                while remaining and time.monotonic() < deadline:
+                    request.settimeout(max(0.001, deadline - time.monotonic()))
+                    chunk = request.recv(min(4096, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+            except OSError:
+                pass
+            finally:
+                self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self.slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.slots.release()
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = 'Featureflow'
+    request_timeout = 10
+
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(self.request_timeout)
 
     def log_message(self, *_args):
         pass  # Do not log tokens, bodies, names or feature content.
@@ -265,7 +316,7 @@ def main():
         store.template(args.team, json.loads(Path(args.file).read_text(encoding='utf-8-sig')))
         print('Шаблон загружен. Существующие фичи не изменены.')
     else:
-        server = ThreadingHTTPServer((args.host, args.port), Handler)
+        server = TeamHTTPServer((args.host, args.port), Handler)
         server.store = store
         print(f'Featureflow listening on {args.host}:{args.port}. Use an HTTPS reverse proxy for team access.')
         server.serve_forever()

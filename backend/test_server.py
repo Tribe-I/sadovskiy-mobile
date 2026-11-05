@@ -1,11 +1,12 @@
 import concurrent.futures
 import http.client
 import json
+import socket
 import tempfile
 import threading
 import unittest
 from pathlib import Path
-from server import Store, Problem, Handler, ThreadingHTTPServer
+from server import Store, Problem, Handler, TeamHTTPServer
 
 
 class TeamApiTests(unittest.TestCase):
@@ -66,7 +67,7 @@ class TeamApiTests(unittest.TestCase):
         self.assertEqual(error.exception.status, 429)
 
     def test_http_contract_rejects_anonymous_and_malformed_requests(self):
-        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        server = TeamHTTPServer(('127.0.0.1', 0), Handler)
         server.store = self.store
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -89,6 +90,56 @@ class TeamApiTests(unittest.TestCase):
             self.assertEqual(response.status, 200)
             self.assertEqual(json.loads(response.read())['team'], 'A')
             connection.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def test_worker_limit_rejects_load_then_recovers(self):
+        entered, release = threading.Event(), threading.Event()
+
+        class SlowHandler(Handler):
+            def do_GET(self):
+                entered.set()
+                release.wait(3)
+                super().do_GET()
+
+        server = TeamHTTPServer(('127.0.0.1', 0), SlowHandler, max_workers=1)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        first = http.client.HTTPConnection(*server.server_address, timeout=3)
+        second = http.client.HTTPConnection(*server.server_address, timeout=3)
+        try:
+            first.request('GET', '/health')
+            self.assertTrue(entered.wait(2))
+            second.request('GET', '/health')
+            overloaded = second.getresponse()
+            self.assertEqual(overloaded.status, 503)
+            self.assertEqual(overloaded.getheader('Retry-After'), '2')
+            overloaded.read()
+            release.set()
+            response = first.getresponse()
+            self.assertEqual(response.status, 200)
+            response.read()
+        finally:
+            release.set()
+            first.close()
+            second.close()
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def test_slow_incomplete_headers_are_closed(self):
+        class ShortTimeoutHandler(Handler):
+            request_timeout = 0.1
+
+        server = TeamHTTPServer(('127.0.0.1', 0), ShortTimeoutHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with socket.create_connection(server.server_address, timeout=2) as connection:
+                connection.sendall(b'GET /health HTTP/1.1\r\nHost: localhost\r\n')
+                self.assertEqual(connection.recv(1), b'')
         finally:
             server.shutdown()
             server.server_close()

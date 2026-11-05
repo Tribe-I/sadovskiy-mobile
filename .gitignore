@@ -6,6 +6,7 @@ node_modules/
 # Expo
 .expo/
 dist/
+dist-sdk58/
 web-build/
 expo-env.d.ts
 

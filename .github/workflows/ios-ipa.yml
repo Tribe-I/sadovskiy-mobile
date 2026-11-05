@@ -1,0 +1,56 @@
+name: iOS unsigned IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      EXPO_PUBLIC_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Check app
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test
+      - name: Generate native project
+        run: |
+          node scripts/write-build-version.cjs
+          npx expo prebuild --platform ios --no-install
+          cd ios
+          pod install
+      - name: Compile for iPhone
+        run: |
+          xcodebuild -workspace ios/Featureflow.xcworkspace -scheme Featureflow \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/featureflow-derived" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build
+      - name: Package and verify IPA
+        run: |
+          app="$RUNNER_TEMP/featureflow-derived/Build/Products/Release-iphoneos/Featureflow.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = ru.tribei.sadovskiymobile
+          test "$(lipo -archs "$app/Featureflow")" = arm64
+          test -s "$app/main.jsbundle"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          ditto "$app" "$RUNNER_TEMP/ipa/Payload/Featureflow.app"
+          cd "$RUNNER_TEMP/ipa"
+          ditto -c -k --keepParent Payload featureflow-ios-unsigned.ipa
+          unzip -tq featureflow-ios-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: featureflow-ios-unsigned
+          path: ${{ runner.temp }}/ipa/featureflow-ios-unsigned.ipa
+          if-no-files-found: error

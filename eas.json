@@ -1,0 +1,17 @@
+{
+  "cli": {
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "developmentClient": false,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://tribe-i.ru/sadovskiy-mobile"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  }
+}
